@@ -209,6 +209,44 @@ body {
     color: white;
 }
 
+/* Priority Badge Styles */
+.priority-badge {
+    display: inline-block;
+    padding: 0.25rem 0.75rem;
+    border-radius: 15px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    margin-left: 0.5rem;
+}
+
+.priority-high {
+    background: #fed7cc;
+    color: #c05621;
+}
+
+.priority-medium {
+    background: #fef5cc;
+    color: #d69e2e;
+}
+
+.priority-low {
+    background: #c6f6d5;
+    color: #276749;
+}
+
+/* Priority Task Items */
+.task-item.priority-high {
+    border-left: 4px solid #e53e3e;
+}
+
+.task-item.priority-medium {
+    border-left: 4px solid #ed8936;
+}
+
+.task-item.priority-low {
+    border-left: 4px solid #48bb78;
+}
+
 /* Category Badge Styles */
 .category-badge {
     display: inline-block;
