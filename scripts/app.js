@@ -1,14 +1,16 @@
-// TaskFlow: A simple task management app with localStorage persistence
+// TaskFlow: A simple task management app with localStorage persistence and category management
 class TaskFlow {
     constructor() {
         // Initialize tasks and task ID counter from storage
         try {
             this.tasks = this.loadTasks();
             this.taskIdCounter = this.getNextTaskId();
+            this.currentFilter = 'all'; // Current category filter
         } catch (error) {
             console.error('Initialization error:', error);
             this.tasks = [];
             this.taskIdCounter = 1;
+            this.currentFilter = 'all';
         }
         this.initializeApp();
         this.bindEvents();
@@ -34,7 +36,7 @@ class TaskFlow {
         }
     }
 
-    // Bind UI events for adding tasks and input focus
+    // Bind UI events for adding tasks, input focus, and category filtering
     bindEvents() {
         try {
             const addTaskBtn = document.getElementById('addTaskBtn');
@@ -48,6 +50,15 @@ class TaskFlow {
                     this.addTask();
                 }
             });
+            
+            // Bind category filter buttons
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const category = e.target.getAttribute('data-category');
+                    this.setFilter(category);
+                });
+            });
+            
             // Focus on input when page loads
             taskInput.focus();
         } catch (error) {
@@ -57,29 +68,39 @@ class TaskFlow {
     }
 
     addTask() {
-        // Add a new task from input
+        // Add a new task from input with category
         try {
             const taskInput = document.getElementById('taskInput');
-            if (!taskInput) throw new Error('Task input element not found');
+            const categorySelect = document.getElementById('categorySelect');
+            if (!taskInput || !categorySelect) throw new Error('Task input or category select element not found');
+            
             const taskText = taskInput.value.trim();
+            const category = categorySelect.value;
+            
             if (taskText === '') {
                 this.showNotification('Please enter a task description', 'warning');
                 taskInput.focus();
                 return;
             }
+            
             const newTask = {
                 id: this.taskIdCounter++,
                 text: taskText,
+                category: category || null,
                 completed: false,
                 createdAt: new Date().toISOString(),
                 completedAt: null
             };
+            
             this.tasks.push(newTask);
             this.saveTasks();
             this.renderTasks();
             this.updateStats();
+            
             taskInput.value = '';
+            categorySelect.value = '';
             taskInput.focus();
+            
             this.showNotification('Task added successfully!', 'success');
         } catch (error) {
             console.error('Error adding task:', error);
@@ -142,32 +163,42 @@ class TaskFlow {
     }
 
     renderTasks() {
-        // Render the list of tasks in the UI
+        // Render the list of tasks in the UI with category filtering
         try {
             const tasksList = document.getElementById('tasksList');
             const emptyState = document.getElementById('emptyState');
             if (!tasksList || !emptyState) throw new Error('Task list or empty state element not found');
-            if (this.tasks.length === 0) {
+            
+            // Filter tasks based on current filter
+            const filteredTasks = this.getFilteredTasks();
+            
+            if (filteredTasks.length === 0) {
                 tasksList.style.display = 'none';
                 emptyState.style.display = 'block';
                 return;
             }
+            
             tasksList.style.display = 'flex';
             emptyState.style.display = 'none';
+            
             // Sort tasks: incomplete first, then by creation date
-            const sortedTasks = [...this.tasks].sort((a, b) => {
+            const sortedTasks = [...filteredTasks].sort((a, b) => {
                 if (a.completed !== b.completed) {
                     return a.completed - b.completed;
                 }
                 return new Date(b.createdAt) - new Date(a.createdAt);
             });
+            
             tasksList.innerHTML = sortedTasks.map(task => `
                 <div class="task-item ${task.completed ? 'completed' : ''}" data-task-id="${task.id}">
                     <div class="task-content">
                         <div class="task-checkbox ${task.completed ? 'checked' : ''}" 
                              onclick="taskFlow.toggleTask(${task.id})">
                         </div>
-                        <span class="task-text">${this.escapeHtml(task.text)}</span>
+                        <span class="task-text">
+                            ${this.escapeHtml(task.text)}
+                            ${this.getCategoryBadge(task.category)}
+                        </span>
                     </div>
                     <div class="task-actions">
                         <button class="task-btn edit-btn" onclick="taskFlow.editTask(${task.id})" title="Edit task">
@@ -186,21 +217,42 @@ class TaskFlow {
     }
 
     updateStats() {
-        // Update task statistics in the UI
+        // Update task statistics in the UI including category breakdown
         try {
             const totalTasks = this.tasks.length;
             const completedTasks = this.tasks.filter(task => task.completed).length;
             const pendingTasks = totalTasks - completedTasks;
+            
+            // Category statistics
+            const workTasks = this.tasks.filter(task => task.category === 'work').length;
+            const personalTasks = this.tasks.filter(task => task.category === 'personal').length;
+            const shoppingTasks = this.tasks.filter(task => task.category === 'shopping').length;
+            
+            // Update main stats
             const totalElem = document.getElementById('totalTasks');
             const completedElem = document.getElementById('completedTasks');
             const pendingElem = document.getElementById('pendingTasks');
             const taskCount = document.getElementById('taskCount');
+            
+            // Update category stats
+            const workElem = document.getElementById('workTasks');
+            const personalElem = document.getElementById('personalTasks');
+            const shoppingElem = document.getElementById('shoppingTasks');
+            
             if (!totalElem || !completedElem || !pendingElem || !taskCount) throw new Error('Stats elements not found');
+            
             totalElem.textContent = totalTasks;
             completedElem.textContent = completedTasks;
             pendingElem.textContent = pendingTasks;
+            
+            if (workElem) workElem.textContent = workTasks;
+            if (personalElem) personalElem.textContent = personalTasks;
+            if (shoppingElem) shoppingElem.textContent = shoppingTasks;
+            
             // Update task count in header
-            taskCount.textContent = `${totalTasks} ${totalTasks === 1 ? 'task' : 'tasks'}`;
+            const filteredCount = this.getFilteredTasks().length;
+            const displayCount = this.currentFilter === 'all' ? totalTasks : filteredCount;
+            taskCount.textContent = `${displayCount} ${displayCount === 1 ? 'task' : 'tasks'}`;
         } catch (error) {
             console.error('Error updating stats:', error);
         }
@@ -305,6 +357,74 @@ class TaskFlow {
         } catch (error) {
             console.error('Error showing notification:', error);
         }
+    }
+
+    // Category Management Methods
+    setFilter(category) {
+        // Set the current category filter
+        try {
+            this.currentFilter = category;
+            
+            // Update active filter button
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.classList.remove('active');
+                if (btn.getAttribute('data-category') === category) {
+                    btn.classList.add('active');
+                }
+            });
+            
+            this.renderTasks();
+            this.updateStats();
+            
+            const categoryName = category === 'all' ? 'All Tasks' : this.getCategoryName(category);
+            this.showNotification(`Showing ${categoryName}`, 'info');
+        } catch (error) {
+            console.error('Error setting filter:', error);
+            this.showNotification('Failed to apply filter.', 'error');
+        }
+    }
+    
+    getFilteredTasks() {
+        // Get tasks filtered by current category
+        try {
+            if (this.currentFilter === 'all') {
+                return this.tasks;
+            }
+            return this.tasks.filter(task => task.category === this.currentFilter);
+        } catch (error) {
+            console.error('Error filtering tasks:', error);
+            return this.tasks;
+        }
+    }
+    
+    getCategoryName(category) {
+        // Get display name for category
+        const categoryNames = {
+            work: '💼 Work',
+            personal: '🏠 Personal',
+            shopping: '🛒 Shopping',
+            health: '🏥 Health',
+            study: '📚 Study'
+        };
+        return categoryNames[category] || category;
+    }
+    
+    getCategoryBadge(category) {
+        // Generate HTML for category badge
+        if (!category) return '';
+        
+        const categoryClasses = {
+            work: 'category-work',
+            personal: 'category-personal',
+            shopping: 'category-shopping',
+            health: 'category-health',
+            study: 'category-study'
+        };
+        
+        const categoryClass = categoryClasses[category] || '';
+        const categoryName = this.getCategoryName(category);
+        
+        return `<span class="category-badge ${categoryClass}">${categoryName}</span>`;
     }
 
     // Utility methods for potential future features
