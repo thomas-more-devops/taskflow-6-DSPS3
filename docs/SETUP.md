@@ -16,7 +16,7 @@
 
 ### Required Software
 - **Web Browser**: Chrome 90+, Firefox 88+, Safari 14+, Edge 90+
-- **Git**: Version 2.20+ for version control
+- **Git**: Version 2.2 for version control
 - **Text Editor**: VS Code, Sublime Text, or any modern editor (optional)
 
 ### Optional Tools
