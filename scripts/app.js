@@ -1,3 +1,17 @@
+// TaskFlow: A comprehensive task management app with localStorage persistence, priority system, and category management
+class TaskFlow {
+    constructor() {
+        // Initialize tasks and task ID counter from storage
+        try {
+            this.tasks = this.loadTasks();
+            this.taskIdCounter = this.getNextTaskId();
+            this.currentFilter = 'all'; // Current category filter
+        } catch (error) {
+            console.error('Initialization error:', error);
+            this.tasks = [];
+            this.taskIdCounter = 1;
+            this.currentFilter = 'all';
+        }
 class TaskFlow {
     constructor() {
         this.tasks = this.loadTasks();
@@ -8,6 +22,7 @@ class TaskFlow {
         this.updateStats();
     }
 
+    // App initialization logic
     initializeApp() {
         console.log('TaskFlow initialized successfully!');
         this.showWelcomeMessage();
@@ -19,6 +34,7 @@ class TaskFlow {
         }
     }
 
+    // Bind UI events for adding tasks, input focus, priority, and category filtering
     bindEvents() {
         const addTaskBtn = document.getElementById('addTaskBtn');
         const taskInput = document.getElementById('taskInput');
@@ -29,6 +45,22 @@ class TaskFlow {
             if (e.key === 'Enter') {
                 this.addTask();
             }
+            addTaskBtn.addEventListener('click', () => this.addTask());
+            taskInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    this.addTask();
+                }
+            });
+            
+            // Bind category filter buttons
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const category = e.target.getAttribute('data-category');
+                    this.setFilter(category);
+                });
+            });
+            
+            // Focus on input when page loads
         });
 
         // Focus on input when page loads
@@ -68,6 +100,51 @@ class TaskFlow {
         this.showNotification('Task added successfully!', 'success');
     }
 
+    addTask() {
+        // Add a new task from input with priority and category
+        try {
+            const taskInput = document.getElementById('taskInput');
+            const prioritySelect = document.getElementById('prioritySelect');
+            const categorySelect = document.getElementById('categorySelect');
+            
+            if (!taskInput || !prioritySelect || !categorySelect) {
+                throw new Error('Required input elements not found');
+            }
+            
+            const taskText = taskInput.value.trim();
+            const priority = prioritySelect.value;
+            const category = categorySelect.value;
+            
+            if (taskText === '') {
+                this.showNotification('Please enter a task description', 'warning');
+                taskInput.focus();
+                return;
+            }
+            
+            const newTask = {
+                id: this.taskIdCounter++,
+                text: taskText,
+                priority: priority || 'medium',
+                category: category || null,
+                completed: false,
+                createdAt: new Date().toISOString(),
+                completedAt: null
+            };
+            
+            this.tasks.push(newTask);
+            this.saveTasks();
+            this.renderTasks();
+            this.updateStats();
+            
+            taskInput.value = '';
+            prioritySelect.value = 'medium';
+            categorySelect.value = '';
+            taskInput.focus();
+            
+            this.showNotification('Task added successfully!', 'success');
+        } catch (error) {
+            console.error('Error adding task:', error);
+            this.showNotification('Failed to add task.', 'error');
     deleteTask(taskId) {
         if (confirm('Are you sure you want to delete this task?')) {
             this.tasks = this.tasks.filter(task => task.id !== taskId);
@@ -120,6 +197,56 @@ class TaskFlow {
     }
 
     renderTasks() {
+        // Render the list of tasks in the UI with priority and category features
+        try {
+            const tasksList = document.getElementById('tasksList');
+            const emptyState = document.getElementById('emptyState');
+            if (!tasksList || !emptyState) throw new Error('Task list or empty state element not found');
+
+            // Filter tasks based on current category filter
+            const filteredTasks = this.getFilteredTasks();
+
+            if (filteredTasks.length === 0) {
+                tasksList.style.display = 'none';
+                emptyState.style.display = 'block';
+                return;
+            }
+
+            tasksList.style.display = 'flex';
+            emptyState.style.display = 'none';
+
+            // Sort tasks: incomplete first, then by priority, then by creation date
+            const sortedTasks = [...filteredTasks].sort((a, b) => {
+                if (a.completed !== b.completed) {
+                    return a.completed - b.completed;
+                }
+                // Priority order: high, medium, low
+                const priorityOrder = { high: 3, medium: 2, low: 1 };
+                if (priorityOrder[a.priority] !== priorityOrder[b.priority]) {
+                    return priorityOrder[b.priority] - priorityOrder[a.priority];
+                }
+                return new Date(b.createdAt) - new Date(a.createdAt);
+            });
+
+            tasksList.innerHTML = sortedTasks.map(task => `
+                <div class="task-item ${task.completed ? 'completed' : ''} priority-${task.priority}" data-task-id="${task.id}">
+                    <div class="task-content">
+                        <div class="task-checkbox ${task.completed ? 'checked' : ''}" 
+                             onclick="taskFlow.toggleTask(${task.id})">
+                        </div>
+                        <span class="task-text">
+                            ${this.escapeHtml(task.text)}
+                            ${this.getPriorityBadge(task.priority)}
+                            ${this.getCategoryBadge(task.category)}
+                        </span>
+                    </div>
+                    <div class="task-actions">
+                        <button class="task-btn edit-btn" onclick="taskFlow.editTask(${task.id})" title="Edit task">
+                            ✏️
+                        </button>
+                        <button class="task-btn delete-btn" onclick="taskFlow.deleteTask(${task.id})" title="Delete task">
+                            🗑️
+                        </button>
         const tasksList = document.getElementById('tasksList');
         const emptyState = document.getElementById('emptyState');
 
@@ -173,6 +300,52 @@ class TaskFlow {
     }
 
     updateStats() {
+        // Update task statistics in the UI including priority and category breakdown
+        try {
+            const totalTasks = this.tasks.length;
+            const completedTasks = this.tasks.filter(task => task.completed).length;
+            const pendingTasks = totalTasks - completedTasks;
+            
+            // Priority statistics
+            const highPriorityTasks = this.tasks.filter(task => task.priority === 'high').length;
+            
+            // Category statistics
+            const workTasks = this.tasks.filter(task => task.category === 'work').length;
+            const personalTasks = this.tasks.filter(task => task.category === 'personal').length;
+            const shoppingTasks = this.tasks.filter(task => task.category === 'shopping').length;
+            
+            // Update main stats
+            const totalElem = document.getElementById('totalTasks');
+            const completedElem = document.getElementById('completedTasks');
+            const pendingElem = document.getElementById('pendingTasks');
+            const taskCount = document.getElementById('taskCount');
+            
+            // Update priority stats
+            const highPriorityElem = document.getElementById('highPriorityTasks');
+            
+            // Update category stats
+            const workElem = document.getElementById('workTasks');
+            const personalElem = document.getElementById('personalTasks');
+            const shoppingElem = document.getElementById('shoppingTasks');
+            
+            if (!totalElem || !completedElem || !pendingElem || !taskCount) throw new Error('Stats elements not found');
+            
+            totalElem.textContent = totalTasks;
+            completedElem.textContent = completedTasks;
+            pendingElem.textContent = pendingTasks;
+            
+            if (highPriorityElem) highPriorityElem.textContent = highPriorityTasks;
+            if (workElem) workElem.textContent = workTasks;
+            if (personalElem) personalElem.textContent = personalTasks;
+            if (shoppingElem) shoppingElem.textContent = shoppingTasks;
+            
+            // Update task count in header
+            const filteredCount = this.getFilteredTasks().length;
+            const displayCount = this.currentFilter === 'all' ? totalTasks : filteredCount;
+            taskCount.textContent = `${displayCount} ${displayCount === 1 ? 'task' : 'tasks'}`;
+        } catch (error) {
+            console.error('Error updating stats:', error);
+        }
         const totalTasks = this.tasks.length;
         const completedTasks = this.tasks.filter(task => task.completed).length;
         const pendingTasks = totalTasks - completedTasks;
@@ -186,6 +359,87 @@ class TaskFlow {
         // Update task count in header
         const taskCount = document.getElementById('taskCount');
         taskCount.textContent = `${totalTasks} ${totalTasks === 1 ? 'task' : 'tasks'}`;
+    }
+
+    // Priority System Methods
+    getPriorityBadge(priority) {
+        // Generate HTML for priority badge
+        const priorityConfig = {
+            high: { class: 'priority-high', text: '🔥 High' },
+            medium: { class: 'priority-medium', text: '⚡ Medium' },
+            low: { class: 'priority-low', text: '🟢 Low' }
+        };
+        
+        const config = priorityConfig[priority] || priorityConfig.medium;
+        return `<span class="priority-badge ${config.class}">${config.text}</span>`;
+    }
+
+    // Category Management Methods
+    setFilter(category) {
+        // Set the current category filter
+        try {
+            this.currentFilter = category;
+            
+            // Update active filter button
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.classList.remove('active');
+                if (btn.getAttribute('data-category') === category) {
+                    btn.classList.add('active');
+                }
+            });
+            
+            this.renderTasks();
+            this.updateStats();
+            
+            const categoryName = category === 'all' ? 'All Tasks' : this.getCategoryName(category);
+            this.showNotification(`Showing ${categoryName}`, 'info');
+        } catch (error) {
+            console.error('Error setting filter:', error);
+            this.showNotification('Failed to apply filter.', 'error');
+        }
+    }
+    
+    getFilteredTasks() {
+        // Get tasks filtered by current category
+        try {
+            if (this.currentFilter === 'all') {
+                return this.tasks;
+            }
+            return this.tasks.filter(task => task.category === this.currentFilter);
+        } catch (error) {
+            console.error('Error filtering tasks:', error);
+            return this.tasks;
+        }
+    }
+    
+    getCategoryName(category) {
+        // Get display name for category
+        const categoryNames = {
+            work: '💼 Work',
+            personal: '🏠 Personal',
+            shopping: '🛒 Shopping',
+            health: '🏥 Health',
+            study: '📚 Study'
+        };
+        return categoryNames[category] || category;
+    }
+    
+    getCategoryBadge(category) {
+        // Generate HTML for category badge
+        if (!category) return '';
+        
+        const categoryClasses = {
+            work: 'category-work',
+            personal: 'category-personal',
+            shopping: 'category-shopping',
+            health: 'category-health',
+            study: 'category-study'
+        };
+        
+        const categoryClass = categoryClasses[category] || '';
+        const categoryName = this.getCategoryName(category);
+        
+        return `<span class="category-badge ${categoryClass}">${categoryName}</span>`;
     }
 
     saveTasks() {
