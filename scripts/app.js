@@ -1,13 +1,30 @@
+// TaskFlow: A comprehensive task management app with localStorage persistence, priority system, and category management
+class TaskFlow {
+    constructor() {
+        // Initialize tasks and task ID counter from storage
+        try {
+            this.tasks = this.loadTasks();
+            this.taskIdCounter = this.getNextTaskId();
+            this.currentFilter = 'all'; // Current category filter
+        } catch (error) {
+            console.error('Initialization error:', error);
+            this.tasks = [];
+            this.taskIdCounter = 1;
+            this.currentFilter = 'all';
+        }
 class TaskFlow {
     constructor() {
         this.tasks = this.loadTasks();
         this.taskIdCounter = this.getNextTaskId();
+        this.currentFilter = 'all';
         this.initializeApp();
         this.bindEvents();
         this.renderTasks();
         this.updateStats();
+        this.setDefaultDueDate();
     }
 
+    // App initialization logic
     initializeApp() {
         console.log('TaskFlow initialized successfully!');
         this.showWelcomeMessage();
@@ -19,6 +36,15 @@ class TaskFlow {
         }
     }
 
+    setDefaultDueDate() {
+        // Set default due date to tomorrow
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        const dueDateInput = document.getElementById('dueDateInput');
+        dueDateInput.value = tomorrow.toISOString().split('T')[0];
+    }
+
+    // Bind UI events for adding tasks, input focus, priority, and category filtering
     bindEvents() {
         const addTaskBtn = document.getElementById('addTaskBtn');
         const taskInput = document.getElementById('taskInput');
@@ -29,6 +55,29 @@ class TaskFlow {
             if (e.key === 'Enter') {
                 this.addTask();
             }
+            addTaskBtn.addEventListener('click', () => this.addTask());
+            taskInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    this.addTask();
+                }
+            });
+            
+            // Bind category filter buttons
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const category = e.target.getAttribute('data-category');
+                    this.setFilter(category);
+                });
+            });
+            
+            // Focus on input when page loads
+        });
+
+        // Due date filter buttons
+        document.querySelectorAll('.due-date-filter-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                this.setDueDateFilter(e.target.dataset.filter);
+            });
         });
 
         // Focus on input when page loads
@@ -37,9 +86,9 @@ class TaskFlow {
 
     addTask() {
         const taskInput = document.getElementById('taskInput');
-        const prioritySelect = document.getElementById('prioritySelect');
+        const dueDateInput = document.getElementById('dueDateInput');
         const taskText = taskInput.value.trim();
-        const priority = prioritySelect.value;
+        const dueDate = dueDateInput.value;
 
         if (taskText === '') {
             this.showNotification('Please enter a task description', 'warning');
@@ -50,7 +99,7 @@ class TaskFlow {
         const newTask = {
             id: this.taskIdCounter++,
             text: taskText,
-            priority: priority,
+            dueDate: dueDate || null,
             completed: false,
             createdAt: new Date().toISOString(),
             completedAt: null
@@ -62,12 +111,57 @@ class TaskFlow {
         this.updateStats();
 
         taskInput.value = '';
-        prioritySelect.value = 'medium';
+        this.setDefaultDueDate();
         taskInput.focus();
 
         this.showNotification('Task added successfully!', 'success');
     }
 
+    addTask() {
+        // Add a new task from input with priority and category
+        try {
+            const taskInput = document.getElementById('taskInput');
+            const prioritySelect = document.getElementById('prioritySelect');
+            const categorySelect = document.getElementById('categorySelect');
+            
+            if (!taskInput || !prioritySelect || !categorySelect) {
+                throw new Error('Required input elements not found');
+            }
+            
+            const taskText = taskInput.value.trim();
+            const priority = prioritySelect.value;
+            const category = categorySelect.value;
+            
+            if (taskText === '') {
+                this.showNotification('Please enter a task description', 'warning');
+                taskInput.focus();
+                return;
+            }
+            
+            const newTask = {
+                id: this.taskIdCounter++,
+                text: taskText,
+                priority: priority || 'medium',
+                category: category || null,
+                completed: false,
+                createdAt: new Date().toISOString(),
+                completedAt: null
+            };
+            
+            this.tasks.push(newTask);
+            this.saveTasks();
+            this.renderTasks();
+            this.updateStats();
+            
+            taskInput.value = '';
+            prioritySelect.value = 'medium';
+            categorySelect.value = '';
+            taskInput.focus();
+            
+            this.showNotification('Task added successfully!', 'success');
+        } catch (error) {
+            console.error('Error adding task:', error);
+            this.showNotification('Failed to add task.', 'error');
     deleteTask(taskId) {
         if (confirm('Are you sure you want to delete this task?')) {
             this.tasks = this.tasks.filter(task => task.id !== taskId);
@@ -105,25 +199,132 @@ class TaskFlow {
         }
     }
 
-    getPriorityValue(priority) {
-        const priorities = { high: 3, medium: 2, low: 1 };
-        return priorities[priority] || 2;
+    setDueDateFilter(filter) {
+        this.currentFilter = filter;
+
+        // Update button states
+        document.querySelectorAll('.due-date-filter-btn').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        document.querySelector(`[data-filter="${filter}"]`).classList.add('active');
+
+        this.renderTasks();
     }
 
-    getPriorityIcon(priority) {
-        const icons = {
-            high: '🔥',
-            medium: '⚡',
-            low: '📌'
-        };
-        return icons[priority] || '⚡';
+    matchesDueDateFilter(task) {
+        const today = new Date().toISOString().split('T')[0];
+
+        switch (this.currentFilter) {
+            case 'all':
+                return true;
+            case 'due-today':
+                return task.dueDate === today;
+            case 'overdue':
+                return task.dueDate && task.dueDate < today && !task.completed;
+            case 'no-due-date':
+                return !task.dueDate;
+            default:
+                return true;
+        }
+    }
+
+    getFilteredTasks() {
+        return this.tasks.filter(task => this.matchesDueDateFilter(task));
+    }
+
+    isOverdue(task) {
+        if (!task.dueDate || task.completed) return false;
+        const today = new Date().toISOString().split('T')[0];
+        return task.dueDate < today;
+    }
+
+    isDueToday(task) {
+        if (!task.dueDate) return false;
+        const today = new Date().toISOString().split('T')[0];
+        return task.dueDate === today;
+    }
+
+    formatDueDate(dateString) {
+        if (!dateString) return '';
+
+        const date = new Date(dateString);
+        const today = new Date();
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+
+        const taskDate = date.toDateString();
+        const todayString = today.toDateString();
+        const tomorrowString = tomorrow.toDateString();
+
+        if (taskDate === todayString) {
+            return 'Today';
+        } else if (taskDate === tomorrowString) {
+            return 'Tomorrow';
+        } else {
+            return date.toLocaleDateString('en-US', {
+                month: 'short',
+                day: 'numeric',
+                year: date.getFullYear() !== today.getFullYear() ? 'numeric' : undefined
+            });
+        }
     }
 
     renderTasks() {
+        // Render the list of tasks in the UI with priority and category features
+        try {
+            const tasksList = document.getElementById('tasksList');
+            const emptyState = document.getElementById('emptyState');
+            if (!tasksList || !emptyState) throw new Error('Task list or empty state element not found');
+
+            // Filter tasks based on current category filter
+            const filteredTasks = this.getFilteredTasks();
+
+            if (filteredTasks.length === 0) {
+                tasksList.style.display = 'none';
+                emptyState.style.display = 'block';
+                return;
+            }
+
+            tasksList.style.display = 'flex';
+            emptyState.style.display = 'none';
+
+            // Sort tasks: incomplete first, then by priority, then by creation date
+            const sortedTasks = [...filteredTasks].sort((a, b) => {
+                if (a.completed !== b.completed) {
+                    return a.completed - b.completed;
+                }
+                // Priority order: high, medium, low
+                const priorityOrder = { high: 3, medium: 2, low: 1 };
+                if (priorityOrder[a.priority] !== priorityOrder[b.priority]) {
+                    return priorityOrder[b.priority] - priorityOrder[a.priority];
+                }
+                return new Date(b.createdAt) - new Date(a.createdAt);
+            });
+
+            tasksList.innerHTML = sortedTasks.map(task => `
+                <div class="task-item ${task.completed ? 'completed' : ''} priority-${task.priority}" data-task-id="${task.id}">
+                    <div class="task-content">
+                        <div class="task-checkbox ${task.completed ? 'checked' : ''}" 
+                             onclick="taskFlow.toggleTask(${task.id})">
+                        </div>
+                        <span class="task-text">
+                            ${this.escapeHtml(task.text)}
+                            ${this.getPriorityBadge(task.priority)}
+                            ${this.getCategoryBadge(task.category)}
+                        </span>
+                    </div>
+                    <div class="task-actions">
+                        <button class="task-btn edit-btn" onclick="taskFlow.editTask(${task.id})" title="Edit task">
+                            ✏️
+                        </button>
+                        <button class="task-btn delete-btn" onclick="taskFlow.deleteTask(${task.id})" title="Delete task">
+                            🗑️
+                        </button>
         const tasksList = document.getElementById('tasksList');
         const emptyState = document.getElementById('emptyState');
+        const filteredTasks = this.getFilteredTasks();
 
-        if (this.tasks.length === 0) {
+        if (filteredTasks.length === 0) {
             tasksList.style.display = 'none';
             emptyState.style.display = 'block';
             return;
@@ -132,60 +333,232 @@ class TaskFlow {
         tasksList.style.display = 'flex';
         emptyState.style.display = 'none';
 
-        // Sort tasks: by priority (high to low), then by completion status, then by creation date
-        const sortedTasks = [...this.tasks].sort((a, b) => {
-            // First sort by completion status (incomplete first)
+        // Sort tasks: incomplete first, then by due date, then by creation date
+        const sortedTasks = [...filteredTasks].sort((a, b) => {
+            // First sort by completion status
             if (a.completed !== b.completed) {
                 return a.completed - b.completed;
             }
 
-            // Then sort by priority (high to low)
-            const priorityDiff = this.getPriorityValue(b.priority) - this.getPriorityValue(a.priority);
-            if (priorityDiff !== 0) {
-                return priorityDiff;
+            // Then sort by due date (overdue first, then by date)
+            if (a.dueDate && b.dueDate) {
+                return new Date(a.dueDate) - new Date(b.dueDate);
+            } else if (a.dueDate) {
+                return -1;
+            } else if (b.dueDate) {
+                return 1;
             }
 
             // Finally sort by creation date (newest first)
             return new Date(b.createdAt) - new Date(a.createdAt);
         });
 
-        tasksList.innerHTML = sortedTasks.map(task => `
-            <div class="task-item ${task.completed ? 'completed' : ''} priority-${task.priority}" data-task-id="${task.id}">
-                <div class="task-content">
-                    <div class="task-checkbox ${task.completed ? 'checked' : ''}"
-                         onclick="taskFlow.toggleTask(${task.id})">
+        tasksList.innerHTML = sortedTasks.map(task => {
+            const isOverdue = this.isOverdue(task);
+            const isDueToday = this.isDueToday(task);
+            const dueDateText = this.formatDueDate(task.dueDate);
+
+            return `
+                <div class="task-item ${task.completed ? 'completed' : ''} ${isOverdue ? 'overdue' : ''} ${isDueToday ? 'due-today' : ''}" data-task-id="${task.id}">
+                    <div class="task-content">
+                        <div class="task-checkbox ${task.completed ? 'checked' : ''}"
+                             onclick="taskFlow.toggleTask(${task.id})">
+                        </div>
+                        <span class="task-text">${this.escapeHtml(task.text)}</span>
+                        ${task.dueDate ? `
+                            <span class="due-date-badge ${isOverdue ? 'overdue' : ''} ${isDueToday ? 'due-today' : ''}">
+                                📅 ${dueDateText}
+                            </span>
+                        ` : ''}
                     </div>
-                    <span class="task-text">${this.escapeHtml(task.text)}</span>
-                    <span class="priority-badge priority-${task.priority}">
-                        ${this.getPriorityIcon(task.priority)} ${task.priority.charAt(0).toUpperCase() + task.priority.slice(1)}
-                    </span>
+                    <div class="task-actions">
+                        <button class="task-btn edit-btn" onclick="taskFlow.editTask(${task.id})" title="Edit task">
+                            ✏️
+                        </button>
+                        <button class="task-btn delete-btn" onclick="taskFlow.deleteTask(${task.id})" title="Delete task">
+                            🗑️
+                        </button>
+                    </div>
                 </div>
-                <div class="task-actions">
-                    <button class="task-btn edit-btn" onclick="taskFlow.editTask(${task.id})" title="Edit task">
-                        ✏️
-                    </button>
-                    <button class="task-btn delete-btn" onclick="taskFlow.deleteTask(${task.id})" title="Delete task">
-                        🗑️
-                    </button>
-                </div>
-            </div>
-        `).join('');
+            `;
+        }).join('');
     }
 
     updateStats() {
+        // Update task statistics in the UI including priority and category breakdown
+        try {
+            const totalTasks = this.tasks.length;
+            const completedTasks = this.tasks.filter(task => task.completed).length;
+            const pendingTasks = totalTasks - completedTasks;
+            
+            // Priority statistics
+            const highPriorityTasks = this.tasks.filter(task => task.priority === 'high').length;
+            
+            // Category statistics
+            const workTasks = this.tasks.filter(task => task.category === 'work').length;
+            const personalTasks = this.tasks.filter(task => task.category === 'personal').length;
+            const shoppingTasks = this.tasks.filter(task => task.category === 'shopping').length;
+            
+            // Update main stats
+            const totalElem = document.getElementById('totalTasks');
+            const completedElem = document.getElementById('completedTasks');
+            const pendingElem = document.getElementById('pendingTasks');
+            const taskCount = document.getElementById('taskCount');
+            
+            // Update priority stats
+            const highPriorityElem = document.getElementById('highPriorityTasks');
+            
+            // Update category stats
+            const workElem = document.getElementById('workTasks');
+            const personalElem = document.getElementById('personalTasks');
+            const shoppingElem = document.getElementById('shoppingTasks');
+            
+            if (!totalElem || !completedElem || !pendingElem || !taskCount) throw new Error('Stats elements not found');
+            
+            totalElem.textContent = totalTasks;
+            completedElem.textContent = completedTasks;
+            pendingElem.textContent = pendingTasks;
+            
+            if (highPriorityElem) highPriorityElem.textContent = highPriorityTasks;
+            if (workElem) workElem.textContent = workTasks;
+            if (personalElem) personalElem.textContent = personalTasks;
+            if (shoppingElem) shoppingElem.textContent = shoppingTasks;
+            
+            // Update task count in header
+            const filteredCount = this.getFilteredTasks().length;
+            const displayCount = this.currentFilter === 'all' ? totalTasks : filteredCount;
+            taskCount.textContent = `${displayCount} ${displayCount === 1 ? 'task' : 'tasks'}`;
+        } catch (error) {
+            console.error('Error updating stats:', error);
+        }
         const totalTasks = this.tasks.length;
         const completedTasks = this.tasks.filter(task => task.completed).length;
         const pendingTasks = totalTasks - completedTasks;
-        const highPriorityTasks = this.tasks.filter(task => task.priority === 'high' && !task.completed).length;
+        const overdueTasks = this.tasks.filter(task => this.isOverdue(task)).length;
 
         document.getElementById('totalTasks').textContent = totalTasks;
         document.getElementById('completedTasks').textContent = completedTasks;
         document.getElementById('pendingTasks').textContent = pendingTasks;
-        document.getElementById('highPriorityTasks').textContent = highPriorityTasks;
+        document.getElementById('overdueTasks').textContent = overdueTasks;
 
         // Update task count in header
         const taskCount = document.getElementById('taskCount');
         taskCount.textContent = `${totalTasks} ${totalTasks === 1 ? 'task' : 'tasks'}`;
+
+        // Update due date statistics
+        this.updateDueDateStats();
+    }
+
+    updateDueDateStats() {
+        const dueDateStats = document.getElementById('dueDateStats');
+        const today = new Date().toISOString().split('T')[0];
+
+        const stats = {
+            dueToday: this.tasks.filter(task => task.dueDate === today && !task.completed).length,
+            overdue: this.tasks.filter(task => this.isOverdue(task)).length,
+            upcoming: this.tasks.filter(task => task.dueDate && task.dueDate > today && !task.completed).length,
+            noDueDate: this.tasks.filter(task => !task.dueDate && !task.completed).length
+        };
+
+        dueDateStats.innerHTML = `
+            <div class="stat-item">
+                <span class="stat-icon">📅</span>
+                <span class="stat-text">Due Today: ${stats.dueToday}</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-icon">⚠️</span>
+                <span class="stat-text">Overdue: ${stats.overdue}</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-icon">📋</span>
+                <span class="stat-text">Upcoming: ${stats.upcoming}</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-icon">📝</span>
+                <span class="stat-text">No Due Date: ${stats.noDueDate}</span>
+            </div>
+        `;
+    }
+
+    // Priority System Methods
+    getPriorityBadge(priority) {
+        // Generate HTML for priority badge
+        const priorityConfig = {
+            high: { class: 'priority-high', text: '🔥 High' },
+            medium: { class: 'priority-medium', text: '⚡ Medium' },
+            low: { class: 'priority-low', text: '🟢 Low' }
+        };
+        
+        const config = priorityConfig[priority] || priorityConfig.medium;
+        return `<span class="priority-badge ${config.class}">${config.text}</span>`;
+    }
+
+    // Category Management Methods
+    setFilter(category) {
+        // Set the current category filter
+        try {
+            this.currentFilter = category;
+            
+            // Update active filter button
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.classList.remove('active');
+                if (btn.getAttribute('data-category') === category) {
+                    btn.classList.add('active');
+                }
+            });
+            
+            this.renderTasks();
+            this.updateStats();
+            
+            const categoryName = category === 'all' ? 'All Tasks' : this.getCategoryName(category);
+            this.showNotification(`Showing ${categoryName}`, 'info');
+        } catch (error) {
+            console.error('Error setting filter:', error);
+            this.showNotification('Failed to apply filter.', 'error');
+        }
+    }
+    
+    getFilteredTasks() {
+        // Get tasks filtered by current category
+        try {
+            if (this.currentFilter === 'all') {
+                return this.tasks;
+            }
+            return this.tasks.filter(task => task.category === this.currentFilter);
+        } catch (error) {
+            console.error('Error filtering tasks:', error);
+            return this.tasks;
+        }
+    }
+    
+    getCategoryName(category) {
+        // Get display name for category
+        const categoryNames = {
+            work: '💼 Work',
+            personal: '🏠 Personal',
+            shopping: '🛒 Shopping',
+            health: '🏥 Health',
+            study: '📚 Study'
+        };
+        return categoryNames[category] || category;
+    }
+    
+    getCategoryBadge(category) {
+        // Generate HTML for category badge
+        if (!category) return '';
+        
+        const categoryClasses = {
+            work: 'category-work',
+            personal: 'category-personal',
+            shopping: 'category-shopping',
+            health: 'category-health',
+            study: 'category-study'
+        };
+        
+        const categoryClass = categoryClasses[category] || '';
+        const categoryName = this.getCategoryName(category);
+        
+        return `<span class="category-badge ${categoryClass}">${categoryName}</span>`;
     }
 
     saveTasks() {
@@ -203,10 +576,10 @@ class TaskFlow {
             const saved = localStorage.getItem('taskflow_tasks');
             const tasks = saved ? JSON.parse(saved) : [];
 
-            // Add default priority to existing tasks for backward compatibility
+            // Add default due date to existing tasks for backward compatibility
             return tasks.map(task => ({
                 ...task,
-                priority: task.priority || 'medium'
+                dueDate: task.dueDate || null
             }));
         } catch (error) {
             console.error('Failed to load tasks:', error);
@@ -311,13 +684,15 @@ class TaskFlow {
 
     getTaskStats() {
         const now = new Date();
+        const today = now.toISOString().split('T')[0];
+
         const stats = {
             total: this.tasks.length,
             completed: this.tasks.filter(t => t.completed).length,
             pending: this.tasks.filter(t => !t.completed).length,
-            highPriority: this.tasks.filter(t => t.priority === 'high' && !t.completed).length,
-            mediumPriority: this.tasks.filter(t => t.priority === 'medium' && !t.completed).length,
-            lowPriority: this.tasks.filter(t => t.priority === 'low' && !t.completed).length,
+            dueToday: this.tasks.filter(t => t.dueDate === today && !t.completed).length,
+            overdue: this.tasks.filter(t => this.isOverdue(t)).length,
+            upcoming: this.tasks.filter(t => t.dueDate && t.dueDate > today && !t.completed).length,
             createdToday: this.tasks.filter(t => {
                 const taskDate = new Date(t.createdAt);
                 return taskDate.toDateString() === now.toDateString();
