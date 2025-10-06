@@ -1,39 +1,25 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <!-- Metadata about the document -->
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-    <!-- Page title -->
     <title>TaskFlow - Task Management App</title>
-
-    <!-- Link to external CSS file -->
     <link rel="stylesheet" href="styles/main.css">
-
-    <!-- Import Google Fonts (Inter) -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
-    <!-- Main container for the whole app -->
     <div class="container">
-
-        <!-- Header section -->
         <header class="header">
             <div class="header-content">
-                <!-- App title with icon -->
                 <h1 class="app-title">
                     <span class="icon">📋</span>
                     TaskFlow
                 </h1>
-                <!-- App subtitle -->
                 <p class="app-subtitle">Streamline your productivity</p>
             </div>
         </header>
 
-        <!-- Main content area -->
         <main class="main">
-            <!-- Section for task input -->
             <div class="task-input-section">
                 <div class="input-container">
                     <!-- Text input for entering new tasks -->
@@ -50,6 +36,14 @@
                     </select>
 
                     <!-- Button to add new task -->
+                    <input type="text" id="taskInput" placeholder="Enter your task here..." class="task-input">
+                    <div class="input-options">
+                        <select id="prioritySelect" class="priority-select">
+                            <option value="medium">Medium Priority</option>
+                            <option value="high">High Priority</option>
+                            <option value="low">Low Priority</option>
+                        </select>
+                    </div>
                     <button id="addTaskBtn" class="add-btn">
                         <span class="add-icon">+</span>
                         Add Task
@@ -57,7 +51,6 @@
                 </div>
             </div>
 
-            <!-- Section for displaying tasks -->
             <div class="tasks-section">
                 <!-- Category Filter Buttons -->
                 <div class="category-filters">
@@ -72,16 +65,11 @@
                 <!-- Header for tasks list -->
                 <div class="tasks-header">
                     <h2>Your Tasks</h2>
-                    <!-- Dynamic task count -->
                     <span id="taskCount" class="task-count">0 tasks</span>
                 </div>
-
-                <!-- Container where tasks will be dynamically added -->
                 <div id="tasksList" class="tasks-list">
                     <!-- Tasks will be dynamically added here -->
                 </div>
-
-                <!-- Empty state display when there are no tasks -->
                 <div id="emptyState" class="empty-state">
                     <div class="empty-icon">✨</div>
                     <h3>No tasks yet</h3>
@@ -89,20 +77,16 @@
                 </div>
             </div>
 
-            <!-- Section for task statistics -->
             <div class="stats-section">
                 <div class="stats-grid">
-                    <!-- Card showing total tasks -->
                     <div class="stat-card">
                         <span class="stat-number" id="totalTasks">0</span>
                         <span class="stat-label">Total Tasks</span>
                     </div>
-                    <!-- Card showing completed tasks -->
                     <div class="stat-card">
                         <span class="stat-number" id="completedTasks">0</span>
                         <span class="stat-label">Completed</span>
                     </div>
-                    <!-- Card showing pending tasks -->
                     <div class="stat-card">
                         <span class="stat-number" id="pendingTasks">0</span>
                         <span class="stat-label">Pending</span>
@@ -119,18 +103,19 @@
                     <div class="stat-card">
                         <span class="stat-number" id="shoppingTasks">0</span>
                         <span class="stat-label">🛒 Shopping</span>
+                    <div class="stat-card priority-stats">
+                        <span class="stat-number" id="highPriorityTasks">0</span>
+                        <span class="stat-label">High Priority</span>
                     </div>
                 </div>
             </div>
         </main>
 
-        <!-- Footer section -->
         <footer class="footer">
             <p>&copy; 2024 TaskFlow. Built with HTML, CSS, and JavaScript.</p>
         </footer>
     </div>
 
-    <!-- Link to external JavaScript file -->
     <script src="scripts/app.js"></script>
 </body>
 </html>
