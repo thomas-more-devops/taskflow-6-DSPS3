@@ -23,6 +23,21 @@
             <div class="task-input-section">
                 <div class="input-container">
                     <input type="text" id="taskInput" placeholder="What needs to be done?" class="task-input">
+                    <!-- Text input for entering new tasks -->
+                    <input type="text" id="taskInput" placeholder="What needs to be done?" class="task-input">
+
+                    <!-- Category selection dropdown -->
+                    <select id="categorySelect" class="category-select">
+                        <option value="">Select Category</option>
+                        <option value="work">💼 Work</option>
+                        <option value="personal">🏠 Personal</option>
+                        <option value="shopping">🛒 Shopping</option>
+                        <option value="health">🏥 Health</option>
+                        <option value="study">📚 Study</option>
+                    </select>
+
+                    <!-- Button to add new task -->
+                    <input type="text" id="taskInput" placeholder="Enter your task here..." class="task-input">
                     <div class="input-options">
                         <div class="date-input-container">
                             <label for="dueDateInput" class="date-label">Due:</label>
@@ -60,6 +75,17 @@
             </div>
 
             <div class="tasks-section">
+                <!-- Category Filter Buttons -->
+                <div class="category-filters">
+                    <button class="filter-btn active" data-category="all">All Tasks</button>
+                    <button class="filter-btn" data-category="work">💼 Work</button>
+                    <button class="filter-btn" data-category="personal">🏠 Personal</button>
+                    <button class="filter-btn" data-category="shopping">🛒 Shopping</button>
+                    <button class="filter-btn" data-category="health">🏥 Health</button>
+                    <button class="filter-btn" data-category="study">📚 Study</button>
+                </div>
+
+                <!-- Header for tasks list -->
                 <div class="tasks-header">
                     <h2>Your Tasks</h2>
                     <span id="taskCount" class="task-count">0 tasks</span>
@@ -100,6 +126,21 @@
                         <div id="dueDateStats" class="due-date-stats-list">
                             <!-- Due date statistics will be populated here -->
                         </div>
+                    <!-- Category Breakdown Statistics -->
+                    <div class="stat-card">
+                        <span class="stat-number" id="workTasks">0</span>
+                        <span class="stat-label">💼 Work</span>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-number" id="personalTasks">0</span>
+                        <span class="stat-label">🏠 Personal</span>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-number" id="shoppingTasks">0</span>
+                        <span class="stat-label">🛒 Shopping</span>
+                    <div class="stat-card priority-stats">
+                        <span class="stat-number" id="highPriorityTasks">0</span>
+                        <span class="stat-label">High Priority</span>
                     </div>
                 </div>
             </div>
