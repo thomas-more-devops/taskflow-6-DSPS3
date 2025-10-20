@@ -1,0 +1,43 @@
+version: "3.9"
+# Build and start everything: docker compose up -d
+#Check running containers: docker ps
+# Stop and remove: docker compose down
+
+services:
+  # MongoDB service
+  db:
+    image: mongo:8.0.15
+    container_name: taskflow-db
+    restart: always
+    environment:
+      MONGO_INITDB_DATABASE: taskflow
+    volumes:
+      - taskflow-db-data:/data/db
+    networks:
+      - taskflow-net
+
+  # TaskFlow application
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: taskflow:2.0
+    container_name: taskflow-app
+    depends_on:
+      - db
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      DB_HOST: taskflow-db
+      DB_NAME: taskflow
+    networks:
+      - taskflow-net
+
+# Shared network
+networks:
+  taskflow-net:
+
+# Persistent MongoDB volume
+volumes:
+  taskflow-db-data:
